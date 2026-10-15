@@ -1427,7 +1427,10 @@
 .hr-flow-heading h1 {
   margin: 9px 0 5px;
   color: #26362f;
-  font: 500 clamp(30px, 4vw, 44px)/1.12 Georgia, "Times New Roman", serif;
+  font:
+    500 clamp(30px, 4vw, 44px)/1.12 Georgia,
+    "Times New Roman",
+    serif;
   letter-spacing: -0.035em;
 }
 .hr-flow-heading p {
@@ -1477,7 +1480,9 @@
   background: #fffefb;
   color: #69766d;
   font-size: 12px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .hr-steps li b {
   display: grid;
@@ -1565,6 +1570,16 @@
 }
 .hr-new-job .hr-note {
   margin: 0;
+}
+.hr-draft-skills {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.hr-draft-skills .hr-skill-list,
+.hr-draft-skills .hr-note {
+  grid-column: 1 / -1;
 }
 .hr-selected-job-line {
   display: flex;

@@ -6,6 +6,7 @@ Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
   HTMLElement: dom.window.HTMLElement,
+  navigator: dom.window.navigator,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 import test, { afterEach } from "node:test";
@@ -19,20 +20,33 @@ afterEach(cleanup);
 
 test("mock API profiles load into cards, open details and do not duplicate on retry", async () => {
   const original = globalThis.fetch;
-  const { demoPortalResponse } = await import("../src/features/hr/portal-fixture");
+  const { demoPortalResponse } =
+    await import("../src/features/hr/portal-fixture");
   globalThis.fetch = async () => Response.json(demoPortalResponse);
   try {
     const ui = render(<HrWorkspace />);
     fireEvent.click(ui.getByRole("button", { name: "Find demo candidates" }));
-    await waitFor(() => assert.equal(ui.getAllByRole("button", { name: "Add to shortlist" }).length, 6));
+    await waitFor(() =>
+      assert.equal(
+        ui.getAllByRole("button", { name: "Add to shortlist" }).length,
+        6,
+      ),
+    );
     fireEvent.click(ui.getByRole("button", { name: /Ananya Rao/ }));
     assert.ok(ui.getByRole("dialog", { name: "Resume for Ananya Rao" }));
     assert.ok(ui.getByRole("heading", { name: "Career history" }));
     fireEvent.click(ui.getByRole("button", { name: "Close resume" }));
     returnToJob(ui);
     fireEvent.click(ui.getByRole("button", { name: "Find demo candidates" }));
-    await waitFor(() => assert.equal(ui.getAllByRole("button", { name: "Add to shortlist" }).length, 6));
-  } finally { globalThis.fetch = original; }
+    await waitFor(() =>
+      assert.equal(
+        ui.getAllByRole("button", { name: "Add to shortlist" }).length,
+        6,
+      ),
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 test("API failure shows an error and keeps the candidate pool empty", async () => {
@@ -41,47 +55,118 @@ test("API failure shows an error and keeps the candidate pool empty", async () =
   try {
     const ui = render(<HrWorkspace />);
     fireEvent.click(ui.getByRole("button", { name: "Find demo candidates" }));
-    await waitFor(() => assert.match(ui.getByRole("alert").textContent || "", /503/));
-    openCandidates(ui); openReview(ui);
+    await waitFor(() =>
+      assert.match(ui.getByRole("alert").textContent || "", /503/),
+    );
+    openCandidates(ui);
+    openReview(ui);
     assert.ok(ui.getByText("Your candidate pool is empty."));
-  } finally { globalThis.fetch = original; }
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 type WorkspaceUi = ReturnType<typeof render>;
 
 test("editable job budget drives checks and default preferences keep Hyderabad profiles visible", async () => {
   const original = globalThis.fetch;
-  const { demoPortalResponse } = await import("../src/features/hr/portal-fixture");
+  const { demoPortalResponse } =
+    await import("../src/features/hr/portal-fixture");
   globalThis.fetch = async () => Response.json(demoPortalResponse);
   try {
     const ui = render(<HrWorkspace />);
-    fireEvent.change(ui.getByLabelText("Budget maximum · ₹ LPA"), { target: { value: "15" } });
+    fireEvent.change(ui.getByLabelText("Budget maximum · ₹ LPA"), {
+      target: { value: "15" },
+    });
     fireEvent.click(ui.getByRole("button", { name: "Apply preferences" }));
     fireEvent.click(ui.getByRole("button", { name: "Find demo candidates" }));
-    await waitFor(() => assert.equal(ui.getAllByRole("button", { name: "Add to shortlist" }).length, 3));
+    await waitFor(() =>
+      assert.equal(
+        ui.getAllByRole("button", { name: "Add to shortlist" }).length,
+        3,
+      ),
+    );
     assert.equal(ui.getAllByText("Budget: Above budget").length, 2);
     assert.equal(ui.getAllByText("Budget: Within budget").length, 1);
-  } finally { globalThis.fetch = original; }
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 test("pending API response stays with its initiating job after switching requisitions", async () => {
   const original = globalThis.fetch;
-  const { demoPortalResponse } = await import("../src/features/hr/portal-fixture");
+  const { demoPortalResponse } =
+    await import("../src/features/hr/portal-fixture");
   let complete: ((value: Response) => void) | undefined;
-  globalThis.fetch = () => new Promise<Response>(resolve => { complete = resolve; });
+  globalThis.fetch = () =>
+    new Promise<Response>((resolve) => {
+      complete = resolve;
+    });
   try {
     const ui = render(<HrWorkspace />);
     fireEvent.click(ui.getByRole("button", { name: "Find demo candidates" }));
     fireEvent.click(ui.getByRole("button", { name: "Add a job" }));
-    fireEvent.change(ui.getByLabelText("Role title"), { target: { value: "SQL Engineer" } });
-    fireEvent.change(ui.getByLabelText("New job description"), { target: { value: "SQL delivery" } });
+    fireEvent.change(ui.getByLabelText("Role title"), {
+      target: { value: "SQL Engineer" },
+    });
+    fireEvent.change(ui.getByLabelText("New job description"), {
+      target: { value: "SQL delivery" },
+    });
     fireEvent.click(ui.getByRole("button", { name: "Create job ID" }));
     complete?.(Response.json(demoPortalResponse));
-    await waitFor(() => assert.match(ui.getByRole("button", { name: /HR-DEMO-001/ }).textContent || "", /6 candidates/));
+    await waitFor(() =>
+      assert.match(
+        ui.getByRole("button", { name: /HR-DEMO-001/ }).textContent || "",
+        /6 candidates/,
+      ),
+    );
     assert.ok(ui.getByRole("button", { name: /Continue to candidates/ }));
-    openCandidates(ui); openReview(ui);
+    openCandidates(ui);
+    openReview(ui);
     assert.ok(ui.getByText("Your candidate pool is empty."));
-  } finally { globalThis.fetch = original; }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("new requisition saves its criteria and approved keywords before candidate sourcing", () => {
+  const ui = render(<HrWorkspace />);
+  fireEvent.click(ui.getByRole("button", { name: "Add a job" }));
+  fireEvent.change(ui.getByLabelText("Role title"), {
+    target: { value: "Platform Engineer" },
+  });
+  fireEvent.change(ui.getByLabelText("Location"), {
+    target: { value: "Hyderabad" },
+  });
+  fireEvent.change(ui.getByLabelText("Required experience minimum · years"), {
+    target: { value: "4" },
+  });
+  fireEvent.change(ui.getByLabelText("Budget maximum · ₹ LPA"), {
+    target: { value: "30" },
+  });
+  fireEvent.change(ui.getByLabelText("New job description"), {
+    target: { value: "Build reliable Kubernetes platforms." },
+  });
+  fireEvent.change(ui.getByLabelText("Add requisition skill"), {
+    target: { value: "Kubernetes" },
+  });
+  fireEvent.click(ui.getByRole("button", { name: "Add skill" }));
+  fireEvent.click(ui.getByRole("button", { name: "Create job ID" }));
+
+  assert.equal(
+    (
+      ui.getByLabelText(
+        "Required experience minimum · years",
+      ) as HTMLInputElement
+    ).value,
+    "4",
+  );
+  assert.equal(
+    (ui.getByLabelText("Budget maximum · ₹ LPA") as HTMLInputElement).value,
+    "30",
+  );
+  assert.ok(ui.getByText("Kubernetes"));
+  assert.ok(ui.getByRole("button", { name: /Continue to candidates/ }));
 });
 
 function openCandidates(ui: WorkspaceUi) {
@@ -102,7 +187,6 @@ function returnToJob(ui: WorkspaceUi) {
   fireEvent.click(ui.getByRole("button", { name: "Back to candidates" }));
   fireEvent.click(ui.getByRole("button", { name: "Back to job" }));
 }
-
 
 test("JD edits invalidate the active analysis until rerun", () => {
   const ui = render(<HrWorkspace />);
