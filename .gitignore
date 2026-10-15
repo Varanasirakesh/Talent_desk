@@ -4,5 +4,7 @@ out/
 *.tsbuildinfo
 .env*
 !.env.example
-config/*.local.json
-public/pdf.worker.min.mjs
+frontend/config/*.local.json
+frontend/public/pdf.worker.min.mjs
+backend/.venv/
+backend/**/__pycache__/

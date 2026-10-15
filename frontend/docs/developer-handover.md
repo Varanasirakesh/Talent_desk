@@ -2,7 +2,7 @@
 
 ## Start here
 
-Extract the ZIP and open its `hr-app` folder. Install Node.js 22.13+ or 24+, then run:
+Open the repository's `frontend` folder. Install Node.js 22.13+ or 24+, then run:
 
 ```sh
 npm ci

@@ -1,6 +1,6 @@
 # Your hiring details
 
-Create `hr-app/config/my-hiring-details.local.json` from `hr-preferences.example.json`, then edit your name, company and hiring preferences. This local file is ignored by Git and is never copied into the public site. Keep it on your device.
+Create `frontend/config/my-hiring-details.local.json` from `hr-preferences.example.json`, then edit your name, company and hiring preferences. This local file is ignored by Git and is never copied into the public site. Keep it on your device.
 
 1. Open Talent Desk at `http://127.0.0.1:3002/`.
 2. Expand **Your hiring settings** and choose **Import JSON**.

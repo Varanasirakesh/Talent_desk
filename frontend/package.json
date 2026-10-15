@@ -9,7 +9,7 @@
     "build": "next build && node scripts/normalize-export.mjs",
     "start": "serve out -l tcp://127.0.0.1:3002",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "tsx --test tests/*.test.tsx",
+    "test": "tsx --test tests/app.test.tsx tests/hr-model.test.tsx tests/hr-workspace.test.tsx tests/portal.test.tsx tests/preferences.test.tsx",
     "format": "prettier --write src tests"
   },
   "dependencies": {
