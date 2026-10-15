@@ -2,25 +2,15 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
+from app.api.v1.router import router as v1_router
 from app.config import settings
-from app.database import SessionLocal
 
 app = FastAPI(title="Talent Desk API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Report whether the API process and configured database are available."""
-
-    with SessionLocal() as session:
-        session.execute(text("SELECT 1"))
-    return {"status": "ok", "database": "connected"}
+app.include_router(v1_router, prefix="/api/v1")
