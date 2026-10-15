@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Talent Desk</title>
+  <link rel="stylesheet" href="/static/talent-desk.css">
+  <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body>
+  <header><strong>Talent Desk</strong><span>by nFinity</span><a href="/settings">Hiring settings</a></header>
+  <main x-data="{showForm:false}">
+    <section class="hero"><p class="kicker">TALENT DESK / HIRING WORKSPACE</p><h1>Choose a job to get started.</h1><p>Create requisitions, compare candidate profiles, and manage onboarding.</p></section>
+    <section class="surface">
+      <div class="section-head"><h2>Your open jobs</h2><button @click="showForm=!showForm">Add a job</button></div>
+      <form id="job-form" x-show="showForm" x-cloak hx-post="/ui/jobs" hx-target="#jobs" @htmx:after-request="showForm=false" class="job-form">
+        <div class="two-col">
+          <label>Role title<input name="title" value="{{ settings.default_role }}" required></label>
+          <label>Location<input name="location" value="{{ settings.default_location }}"></label>
+          <label>Minimum experience · years<input name="min_experience_years" type="number" min="0" step=".5" value="{{ settings.min_experience_years or '' }}"></label>
+          <label>Maximum experience · years<input name="max_experience_years" type="number" min="0" step=".5"></label>
+          <label>Budget minimum · ₹ LPA<input name="salary_min_lpa" type="number" min="0" step=".1"></label>
+          <label>Budget maximum · ₹ LPA<input name="salary_max_lpa" type="number" min="0" step=".1" value="{{ settings.max_salary_lpa or '' }}"></label>
+          <label>Target notice period · days<input name="max_notice_days" type="number" min="0" value="{{ settings.max_notice_days or '' }}"></label>
+        </div>
+        <div class="section-head"><label>Job description</label><button type="button" hx-post="/ui/ai/job-description" hx-include="#job-form" hx-target="#job-description-field" hx-swap="outerHTML">Generate with AI</button></div>
+        <div id="job-description-field"><textarea name="description" required></textarea></div>
+        <div class="section-head"><label>Required skills / search keywords</label><button type="button" hx-post="/ui/ai/keywords" hx-include="#job-form" hx-target="#keywords-field" hx-swap="outerHTML">Generate keywords with AI</button></div>
+        <div id="keywords-field"><input name="keywords" value="{{ (settings.default_skills or [])|join(', ') }}" placeholder="Python, SQL, Airflow"></div>
+        <button>Create job ID</button>
+      </form>
+      <div id="jobs" hx-get="/ui/jobs" hx-trigger="load">Loading requisitions…</div>
+    </section>
+  </main>
+</body>
+</html>

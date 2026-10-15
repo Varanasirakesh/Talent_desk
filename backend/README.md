@@ -1,20 +1,19 @@
 # Talent Desk API
 
-This FastAPI service will own PostgreSQL access, Hugging Face inference, match calculations, and authorised recruiting-provider integrations. It is deliberately separate from the browser UI so secrets never enter the frontend bundle.
+This FastAPI service serves the Talent Desk UI as well as the versioned API. It uses
+MySQL for persisted requisitions, candidates, matching, shortlists, and onboarding.
+HTMX and Alpine are loaded by the server-rendered templates; no browser secret is used.
 
 ## Local setup
 
 ```sh
 py -3.12 -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+Copy-Item .env.example .env
+python -m app.create_tables
 uvicorn app.main:app --reload --port 8000
 ```
 
-Copy `.env.example` to `.env` and set the required backend-only values. Do not commit `.env`.
-
-After adding dependencies and configuring the MySQL URL, create the initial local tables:
-
-```sh
-python -m app.create_tables
-```
+Set the MySQL `DATABASE_URL` in `.env`; never commit that file. Visit `/` for the UI,
+`/health` for a database health check, and `/docs` for the API documentation.

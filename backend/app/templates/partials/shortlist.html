@@ -1,0 +1,1 @@
+{% if rows %}{% for row in rows %}<article class="job-card"><strong>{{ row.candidate.name }}</strong><p>{{ row.score }}% match · {{ row.matched|join(', ') }}</p></article>{% endfor %}{% else %}<p>Your shortlist is empty.</p>{% endif %}

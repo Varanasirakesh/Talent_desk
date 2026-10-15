@@ -64,3 +64,42 @@ class CandidateMatch(Base):
     keyword_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     evidence: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     calculated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class OnboardingTask(Base):
+    __tablename__ = "onboarding_tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str | None] = mapped_column(ForeignKey("candidates.id", ondelete="SET NULL"))
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner: Mapped[str] = mapped_column(String(255), nullable=False)
+    due_date: Mapped[str | None] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="todo")
+
+
+class ShortlistEntry(Base):
+    __tablename__ = "shortlist_entries"
+    __table_args__ = (UniqueConstraint("job_id", "candidate_id", name="uq_shortlist_job_candidate"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class RecruiterSettings(Base):
+    """Single-workspace recruiter defaults; authentication can scope this later."""
+
+    __tablename__ = "recruiter_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    recruiter_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    company: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    default_role: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    default_location: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    default_skills: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    min_experience_years: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
+    max_notice_days: Mapped[int | None] = mapped_column(Integer)
+    max_salary_lpa: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    linkedin_profile_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")

@@ -54,3 +54,25 @@ class JobOutput(JobInput):
     keywords: list[KeywordOutput]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class JobDescriptionGenerateInput(BaseModel):
+    role_title: str = Field(min_length=2, max_length=255)
+    location: str | None = Field(default=None, max_length=255)
+    min_experience_years: Decimal | None = Field(default=None, ge=0, le=80)
+    max_experience_years: Decimal | None = Field(default=None, ge=0, le=80)
+    additional_requirements: str | None = Field(default=None, max_length=5000)
+
+
+class JobDescriptionGenerateOutput(BaseModel):
+    description: str
+
+
+class KeywordGenerateInput(BaseModel):
+    job_title: str = Field(min_length=2, max_length=255)
+    description: str = Field(min_length=20, max_length=20000)
+    limit: int = Field(default=20, ge=1, le=40)
+
+
+class KeywordGenerateOutput(BaseModel):
+    keywords: list[str]
