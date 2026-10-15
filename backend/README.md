@@ -5,7 +5,7 @@ This FastAPI service will own PostgreSQL access, Hugging Face inference, match c
 ## Local setup
 
 ```sh
-python -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
