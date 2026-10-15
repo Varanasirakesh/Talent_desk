@@ -2,18 +2,10 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import text
 
-
-class Settings(BaseSettings):
-    """Backend-only runtime configuration."""
-
-    frontend_origin: str = "http://127.0.0.1:3002"
-
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-
-settings = Settings()
+from app.config import settings
+from app.database import SessionLocal
 
 app = FastAPI(title="Talent Desk API")
 app.add_middleware(
@@ -27,6 +19,8 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Report whether the API process is available."""
+    """Report whether the API process and configured database are available."""
 
-    return {"status": "ok"}
+    with SessionLocal() as session:
+        session.execute(text("SELECT 1"))
+    return {"status": "ok", "database": "connected"}

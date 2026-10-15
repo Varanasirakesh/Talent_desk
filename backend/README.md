@@ -12,3 +12,9 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 Copy `.env.example` to `.env` and set the required backend-only values. Do not commit `.env`.
+
+After adding dependencies and configuring the MySQL URL, create the initial local tables:
+
+```sh
+python -m app.create_tables
+```
