@@ -23,7 +23,7 @@
           <label>Budget maximum · ₹ LPA<input name="salary_max_lpa" type="number" min="0" step=".1" value="{{ settings.max_salary_lpa or '' }}"></label>
           <label>Target notice period · days<input name="max_notice_days" type="number" min="0" value="{{ settings.max_notice_days or '' }}"></label>
         </div>
-        <div class="section-head"><label>Job description</label><button type="button" hx-post="/ui/ai/job-description" hx-include="#job-form" hx-target="#job-description-field" hx-swap="outerHTML">Generate with AI</button></div>
+        <div class="section-head"><label>Job description / additional HR requirements</label><button type="button" hx-post="/ui/ai/job-description" hx-include="#job-form" hx-target="#job-description-field" hx-swap="outerHTML">Generate with AI</button></div>
         <div id="job-description-field"><textarea name="description" required></textarea></div>
         <div class="section-head"><label>Required skills / search keywords</label><button type="button" hx-post="/ui/ai/keywords" hx-include="#job-form" hx-target="#keywords-field" hx-swap="outerHTML">Generate keywords with AI</button></div>
         <div id="keywords-field"><input name="keywords" value="{{ (settings.default_skills or [])|join(', ') }}" placeholder="Python, SQL, Airflow"></div>

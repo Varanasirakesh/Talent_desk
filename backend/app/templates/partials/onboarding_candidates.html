@@ -1,0 +1,5 @@
+<select name="candidate_id" {% if required %}required{% endif %}>
+  <option value="">{% if required %}Choose shortlisted candidate{% else %}General task (no candidate){% endif %}</option>
+  {% for candidate in candidates %}<option value="{{ candidate.id }}">{{ candidate.name }}</option>{% endfor %}
+</select>
+{% if not candidates %}<p class="muted">Shortlist a candidate in step 3 to create candidate-specific onboarding tasks.</p>{% endif %}

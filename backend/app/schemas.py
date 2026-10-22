@@ -61,6 +61,9 @@ class JobDescriptionGenerateInput(BaseModel):
     location: str | None = Field(default=None, max_length=255)
     min_experience_years: Decimal | None = Field(default=None, ge=0, le=80)
     max_experience_years: Decimal | None = Field(default=None, ge=0, le=80)
+    salary_min_lpa: Decimal | None = Field(default=None, ge=0, le=10000)
+    salary_max_lpa: Decimal | None = Field(default=None, ge=0, le=10000)
+    max_notice_days: int | None = Field(default=None, ge=0, le=730)
     additional_requirements: str | None = Field(default=None, max_length=5000)
 
 

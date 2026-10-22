@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_session
 from app.demo_candidates import DEMO_CANDIDATES
 from app.models import Candidate, CandidateMatch, Job, JobKeyword, OnboardingTask, RecruiterSettings, ShortlistEntry
-from app.ai import AIServiceError, generate_json
+from app.api.v1.ai import AIServiceError, JOB_DESCRIPTION_INSTRUCTION, generate_json
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -99,20 +99,26 @@ async def ai_job_description(
     location: str = Form(default=""),
     min_experience_years: str = Form(default=""),
     max_experience_years: str = Form(default=""),
+    salary_min_lpa: str = Form(default=""),
+    salary_max_lpa: str = Form(default=""),
+    max_notice_days: str = Form(default=""),
     description: str = Form(default=""),
 ):
     if len(title.strip()) < 2:
         return ai_error_fragment(request, "job-description-field", "description", description, "Enter a role title before generating a job description.")
     try:
         result = await generate_json(
-            instruction=(
-                "Write a complete, inclusive job description. Include a role summary, responsibilities, required "
-                "qualifications, preferred qualifications, and an equal-opportunity note. Return JSON exactly as "
-                '{"description":"..."}.'
-            ),
-            payload={"role_title": title.strip(), "location": location.strip() or None,
-                     "min_experience_years": min_experience_years or None,
-                     "max_experience_years": max_experience_years or None},
+            instruction=JOB_DESCRIPTION_INSTRUCTION,
+            payload={
+                "role_title": title.strip(),
+                "location": location.strip() or None,
+                "min_experience_years": min_experience_years or None,
+                "max_experience_years": max_experience_years or None,
+                "salary_min_lpa": salary_min_lpa or None,
+                "salary_max_lpa": salary_max_lpa or None,
+                "max_notice_days": max_notice_days or None,
+                "additional_requirements": description.strip() or None,
+            },
         )
         generated = str(result.get("description", "")).strip()
         if len(generated) < 50:
@@ -297,12 +303,12 @@ def candidate_delete(request:Request,job_id:str,candidate_id:str,session:Session
 @router.post("/jobs/{job_id}/candidates/{candidate_id}/shortlist",response_class=HTMLResponse)
 def shortlist(request:Request,job_id:str,candidate_id:str,session:Session=Depends(get_session)):
     if not session.scalar(select(ShortlistEntry).where(ShortlistEntry.job_id==job_id,ShortlistEntry.candidate_id==candidate_id)):session.add(ShortlistEntry(job_id=job_id,candidate_id=candidate_id));session.commit()
-    return candidate_list(request,job_id,session=session)
+    response=candidate_list(request,job_id,session=session);response.headers["HX-Trigger"]="shortlistChanged";return response
 @router.delete("/jobs/{job_id}/candidates/{candidate_id}/shortlist",response_class=HTMLResponse)
 def unshortlist(request:Request,job_id:str,candidate_id:str,session:Session=Depends(get_session)):
     item=session.scalar(select(ShortlistEntry).where(ShortlistEntry.job_id==job_id,ShortlistEntry.candidate_id==candidate_id))
     if item:session.delete(item);session.commit()
-    return candidate_list(request,job_id,session=session)
+    response=candidate_list(request,job_id,session=session);response.headers["HX-Trigger"]="shortlistChanged";return response
 @router.get("/jobs/{job_id}/shortlist",response_class=HTMLResponse)
 def shortlist_list(request:Request,job_id:str,session:Session=Depends(get_session)):
     job=job_or_404(session,job_id); ids=set(session.scalars(select(ShortlistEntry.candidate_id).where(ShortlistEntry.job_id==job_id)).all()); candidates=session.scalars(select(Candidate).where(Candidate.job_id==job_id)).all()
@@ -329,15 +335,26 @@ def export_onboarding(job_id:str,session:Session=Depends(get_session)):
     return JSONResponse({"jobId":job_id,"exportedAt":datetime.now(UTC).isoformat(),"tasks":[{"title":task.title,"owner":task.owner,"dueDate":task.due_date,"status":task.status,"candidateId":task.candidate_id} for task in tasks]},headers={"Content-Disposition":f'attachment; filename="{job_id}-onboarding.json"'})
 @router.get("/jobs/{job_id}/tasks",response_class=HTMLResponse)
 def task_list(request:Request,job_id:str,session:Session=Depends(get_session)):
-    return templates.TemplateResponse(request,"partials/tasks.html",{"tasks":session.scalars(select(OnboardingTask).where(OnboardingTask.job_id==job_id).order_by(OnboardingTask.id.desc())).all(),"job_id":job_id})
+    tasks=session.scalars(select(OnboardingTask).where(OnboardingTask.job_id==job_id).order_by(OnboardingTask.id.desc())).all()
+    names={candidate.id:candidate.name for candidate in session.scalars(select(Candidate).where(Candidate.job_id==job_id)).all()}
+    return templates.TemplateResponse(request,"partials/tasks.html",{"tasks":tasks,"job_id":job_id,"candidate_names":names})
+
+@router.get("/jobs/{job_id}/onboarding-candidates",response_class=HTMLResponse)
+def onboarding_candidates(request:Request,job_id:str,required:bool=False,session:Session=Depends(get_session)):
+    job_or_404(session,job_id)
+    ids=session.scalars(select(ShortlistEntry.candidate_id).where(ShortlistEntry.job_id==job_id)).all()
+    candidates=session.scalars(select(Candidate).where(Candidate.job_id==job_id,Candidate.id.in_(ids)).order_by(Candidate.name)).all() if ids else []
+    return templates.TemplateResponse(request,"partials/onboarding_candidates.html",{"candidates":candidates,"required":required})
 @router.post("/jobs/{job_id}/tasks",response_class=HTMLResponse)
-def task_add(request:Request,job_id:str,title:str=Form(),owner:str=Form(),due_date:str=Form(default=""),session:Session=Depends(get_session)):
-    session.add(OnboardingTask(job_id=job_id,title=title.strip(),owner=owner.strip(),due_date=due_date or None,status="todo"));session.commit();return task_list(request,job_id,session)
+def task_add(request:Request,job_id:str,title:str=Form(),owner:str=Form(),candidate_id:str=Form(default=""),due_date:str=Form(default=""),session:Session=Depends(get_session)):
+    job_or_404(session,job_id)
+    if candidate_id and not session.scalar(select(ShortlistEntry).where(ShortlistEntry.job_id==job_id,ShortlistEntry.candidate_id==candidate_id)): raise HTTPException(422,"Choose a shortlisted candidate")
+    session.add(OnboardingTask(job_id=job_id,candidate_id=candidate_id or None,title=title.strip(),owner=owner.strip(),due_date=due_date or None,status="todo"));session.commit();return task_list(request,job_id,session)
 @router.post("/jobs/{job_id}/tasks/checklist",response_class=HTMLResponse)
 def task_checklist(request:Request,job_id:str,candidate_id:str=Form(),owner:str=Form(),joining_date:str=Form(default=""),session:Session=Depends(get_session)):
     job_or_404(session,job_id)
     candidate=session.scalar(select(Candidate).where(Candidate.id==candidate_id,Candidate.job_id==job_id))
-    if not candidate: raise HTTPException(422,"Choose a candidate from this requisition")
+    if not candidate or not session.scalar(select(ShortlistEntry).where(ShortlistEntry.job_id==job_id,ShortlistEntry.candidate_id==candidate_id)): raise HTTPException(422,"Choose a shortlisted candidate")
     title_prefix=f"{candidate.name}: "
     checklist=["Confirm offer acceptance and joining date","Collect required documents","Prepare laptop and system access","Share first-week plan","Schedule manager introduction"]
     for title in checklist:
