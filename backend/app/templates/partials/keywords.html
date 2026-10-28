@@ -1,1 +1,10 @@
-<div class="tags">{% for keyword in job.keywords if keyword.is_approved %}<span class="tag">{{ keyword.term }} <small>({{ keyword.source }})</small> <button class="tag-remove" hx-delete="/jobs/{{ job.id }}/keywords/{{ keyword.id }}" hx-target="#keywords" title="Remove {{ keyword.term }}">×</button></span>{% else %}<p>No keywords yet.</p>{% endfor %}</div>
+{% set approved = job.keywords|selectattr('is_approved')|list %}
+{% if approved %}
+<div class="tags" aria-label="Approved role keywords">
+  {% for keyword in approved %}
+  <span class="tag">{{ keyword.term }} <button type="button" class="tag-remove" hx-delete="/jobs/{{ job.id }}/keywords/{{ keyword.id }}" hx-target="#keywords" title="Remove {{ keyword.term }}" aria-label="Remove {{ keyword.term }}">×</button></span>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><div><strong>No approved keywords yet</strong><p>Add the skills, tools, and domain terms that should guide candidate matching.</p></div></div>
+{% endif %}

@@ -1,17 +1,183 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ job.title }} · Talent Desk</title><link rel="stylesheet" href="/static/talent-desk.css"><script defer src="https://unpkg.com/htmx.org@2.0.4"></script><script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script></head>
-<body><header><a href="/">Talent Desk</a><span>{{ job.id }}</span><a href="/settings">Hiring settings</a></header>
-<main x-data="{step:1,candidateForm:false,importForm:false,taskForm:false,keywordForm:false,editJob:false,queryCopied:false}">
-  <section class="hero"><p class="kicker">REQUISITION {{ job.id }}</p><h1>{{ job.title }}</h1><p>{{ job.location or 'Location not set' }} · {{ job.min_experience_years or '—' }}–{{ job.max_experience_years or '—' }} years · ₹{{ job.salary_min_lpa or '—' }}–{{ job.salary_max_lpa or '—' }} LPA</p></section>
-  <nav class="workflow" aria-label="Hiring workflow"><button :class="{active:step===1}" @click="step=1">1. Role & keywords</button><button :class="{active:step===2}" @click="step=2">2. Add candidates</button><button :class="{active:step===3}" @click="step=3">3. Review & shortlist</button><button :class="{active:step===4}" @click="step=4">4. Onboarding</button></nav>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('talent-desk-theme')||'dark'}catch(_){document.documentElement.dataset.theme='dark'}</script>
+  <title>{{ job.title }} · Talent Desk</title>
+  <link rel="stylesheet" href="/static/talent-desk.css">
+  <script defer src="/static/talent-desk.js"></script>
+  <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body hx-on::response-error="document.getElementById('app-feedback').textContent='We couldn’t complete that action. Check the details and try again.';document.getElementById('app-feedback').hidden=false">
+  <header>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">TD</span>Talent Desk</div>
+    <span class="header-context">{{ job.id }}</span>
+    <nav class="header-actions" aria-label="Account navigation">
+      <a class="header-home" href="/" title="Return to open roles">Home</a>
+      <a href="/settings">Hiring settings</a>
+      <a class="create-account-link" href="/register">Create account</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false"><span class="theme-icon" data-theme-icon aria-hidden="true">☾</span><span class="theme-label" data-theme-label>Dark mode</span></button>
+    </nav>
+  </header>
+  <div id="app-feedback" class="app-feedback" role="alert" aria-live="assertive" hidden></div>
+  <main x-data="{step:1,candidateForm:false,importForm:false,taskForm:false,keywordForm:false,editJob:false,queryCopied:false}">
+    <section class="hero job-overview">
+      <p class="kicker">REQUISITION {{ job.id }}</p>
+      <h1>{{ job.title or '' }}</h1>
+      <div class="overview-metrics" aria-label="Job summary">
+        <span><small>Location</small>{{ job.location or 'Not set' }}</span>
+        <span><small>Experience</small>{{ job.min_experience_years or '—' }}–{{ job.max_experience_years or '—' }} years</span>
+        <span><small>Budget</small>₹{{ job.salary_min_lpa or '—' }}–{{ job.salary_max_lpa or '—' }} LPA</span>
+      </div>
+    </section>
 
-  <section x-show="step===1" class="surface"><div class="section-head"><h2>Job brief</h2><button @click="editJob=!editJob">Edit job details</button></div><details><summary>View job description</summary><p class="description">{{ job.description }}</p></details><form x-show="editJob" x-cloak class="job-form" hx-post="/jobs/{{ job.id }}/details" hx-target="body" hx-swap="outerHTML"><div class="two-col"><label>Role title<input name="title" value="{{ job.title }}" required></label><label>Location<input name="location" value="{{ job.location or '' }}"></label><label>Minimum experience<input name="min_experience_years" type="number" step=".5" value="{{ job.min_experience_years or '' }}"></label><label>Maximum experience<input name="max_experience_years" type="number" step=".5" value="{{ job.max_experience_years or '' }}"></label><label>Budget minimum · ₹ LPA<input name="salary_min_lpa" type="number" step=".1" value="{{ job.salary_min_lpa or '' }}"></label><label>Budget maximum · ₹ LPA<input name="salary_max_lpa" type="number" step=".1" value="{{ job.salary_max_lpa or '' }}"></label><label>Target notice · days<input name="max_notice_days" type="number" value="{{ job.max_notice_days or '' }}"></label></div><label>Job description<textarea name="description" required>{{ job.description }}</textarea></label><button>Save changes</button></form></section>
-  <section x-show="step===1" class="surface"><div class="section-head"><div><h2>Required skills / keywords</h2><p class="muted">Human and AI suggestions stay together here and drive search and scoring.</p></div><div><button hx-post="/jobs/{{ job.id }}/keywords/suggest" hx-target="#keywords">Analyze job description</button> <button @click="keywordForm=!keywordForm">Add skill</button></div></div><form x-show="keywordForm" x-cloak class="inline-form" hx-post="/jobs/{{ job.id }}/keywords" hx-target="#keywords"><input name="term" placeholder="Skill or search keyword" required><button>Add</button></form><div id="keywords" hx-get="/jobs/{{ job.id }}/keywords" hx-trigger="load"></div><div class="section-head"><a class="button-link" target="_blank" rel="noopener" href="https://recruit.naukri.com/">Open Naukri Recruiter</a><button @click="step=2">Continue to candidates →</button></div></section>
+    <nav class="workflow" aria-label="Hiring workflow">
+      <button type="button" :class="{active:step===1}" :aria-current="step===1 ? 'step' : false" @click="step=1">1. Role and keywords</button>
+      <button type="button" :class="{active:step===2}" :aria-current="step===2 ? 'step' : false" @click="step=2">2. Add candidates</button>
+      <button type="button" :class="{active:step===3}" :aria-current="step===3 ? 'step' : false" @click="step=3">3. Review and shortlist</button>
+      <button type="button" :class="{active:step===4}" :aria-current="step===4 ? 'step' : false" @click="step=4">4. Onboarding</button>
+    </nav>
 
-  <section x-show="step===2" class="surface"><div class="section-head"><div><h2>Bring candidates into view</h2><p class="muted">Use the Naukri search with the approved keywords, then add profiles or resumes here for transparent matching.</p></div><button hx-post="/jobs/{{ job.id }}/demo-candidates" hx-target="#candidates">Load demo profiles</button></div><label>Naukri Boolean query<input readonly value="{{ boolean_query }}"></label><button @click="navigator.clipboard.writeText('{{ boolean_query|replace("'", "\\'") }}');queryCopied=true">Copy Boolean query</button><span x-show="queryCopied" x-cloak>Copied.</span><p><a class="button-link" target="_blank" rel="noopener" href="https://recruit.naukri.com/">Open Naukri Recruiter</a></p><button @click="candidateForm=!candidateForm">Add one candidate profile</button> <button @click="importForm=!importForm">Upload multiple resumes</button><form x-show="candidateForm" x-cloak class="job-form" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post="/jobs/{{ job.id }}/candidates" hx-target="#candidates"><div class="two-col"><label>Name<input name="name" required></label><label>Location<input name="location"></label><label>Experience · years<input type="number" name="years_experience" min="0" step=".5"></label><label>Notice · days<input type="number" name="notice_days" min="0"></label><label>Salary · ₹ LPA<input type="number" name="salary_lpa" min="0" step=".1"></label></div><label>Resume / profile text<textarea name="resume_text"></textarea></label><label>Or upload one TXT, MD, PDF or DOCX (max 10 MB)<input type="file" name="resume_file" accept=".txt,.md,.pdf,.docx"></label><button>Add and calculate match</button></form><form x-show="importForm" x-cloak class="job-form" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post="/jobs/{{ job.id }}/candidates/import" hx-target="#candidates"><label>Upload TXT, MD, PDF or DOCX resumes<input type="file" name="resume_files" accept=".txt,.md,.pdf,.docx" multiple required></label><button>Import resumes and calculate matches</button></form><div class="section-head"><button @click="step=1">← Back</button><button @click="step=3">Review candidates →</button></div></section>
+    <section x-show="step===1" x-transition.opacity class="surface" aria-labelledby="job-brief-title">
+      <div class="section-head">
+        <div><p class="eyebrow">ROLE FOUNDATION</p><h2 id="job-brief-title">Job brief</h2></div>
+        <button type="button" class="secondary" @click="editJob=!editJob" x-text="editJob ? 'Close editor' : 'Edit job details'"></button>
+      </div>
+      <details class="job-description">
+        <summary>View job description</summary>
+        <p class="description">{{ job.description }}</p>
+      </details>
+      <form x-show="editJob" x-cloak class="job-form" hx-post="/jobs/{{ job.id }}/details" hx-target="body" hx-swap="outerHTML">
+        <div class="two-col">
+          <label>Role title<input name="title" value="{{ job.title or '' }}" required></label>
+          <label>Location<input name="location" value="{{ job.location or '' }}"></label>
+          <label>Minimum experience · years<input name="min_experience_years" type="number" min="0" step=".5" value="{{ job.min_experience_years or '' }}"></label>
+          <label>Maximum experience · years<input name="max_experience_years" type="number" min="0" step=".5" value="{{ job.max_experience_years or '' }}"></label>
+          <label>Budget minimum · ₹ LPA<input name="salary_min_lpa" type="number" min="0" step=".1" value="{{ job.salary_min_lpa or '' }}"></label>
+          <label>Budget maximum · ₹ LPA<input name="salary_max_lpa" type="number" min="0" step=".1" value="{{ job.salary_max_lpa or '' }}"></label>
+          <label>Target notice · days<input name="max_notice_days" type="number" min="0" value="{{ job.max_notice_days or '' }}"></label>
+        </div>
+        <label>Job description<textarea name="description" required>{{ job.description }}</textarea></label>
+        <div class="form-actions"><button>Save changes</button></div>
+      </form>
+    </section>
 
-  <section x-show="step===3" class="surface"><div class="section-head"><h2>Review & shortlist</h2><div><a class="button-link" href="/jobs/{{ job.id }}/export/candidates.csv">Export candidate results</a> <a class="button-link" href="/jobs/{{ job.id }}/export/shortlist.csv">Export shortlist</a> <button @click="step=4">Continue to onboarding →</button></div></div><form class="filters" hx-get="/jobs/{{ job.id }}/candidates" hx-target="#candidates" hx-trigger="change, keyup delay:300ms from:input"><input name="skill" placeholder="Matched skill"><input name="location" placeholder="Location"><input type="number" name="min_experience" min="0" step=".5" placeholder="Min years"><input type="number" name="max_notice_days" min="0" placeholder="Max notice"><input type="number" name="max_salary_lpa" min="0" step=".5" placeholder="Max ₹ LPA"><select name="source"><option value="all">All sources</option><option value="upload">Uploaded</option><option value="sample">Demo</option></select><select name="sort"><option value="score">Best match</option><option value="name">Name</option><option value="experience">Experience</option></select></form><div id="candidates" hx-get="/jobs/{{ job.id }}/candidates" hx-trigger="load"></div><h3>Shortlist</h3><div id="shortlist" hx-get="/jobs/{{ job.id }}/shortlist" hx-trigger="load"></div></section>
+    <section x-show="step===1" x-transition.opacity class="surface" aria-labelledby="keywords-title">
+      <div class="section-head">
+        <div class="section-intro">
+          <p class="eyebrow">MATCHING CRITERIA</p>
+          <h2 id="keywords-title">Required skills and keywords</h2>
+          <p class="muted">These approved terms power candidate search and transparent match scoring.</p>
+        </div>
+        <div class="section-actions">
+          <button type="button" class="secondary" hx-post="/jobs/{{ job.id }}/keywords/suggest" hx-target="#keywords">Analyze brief</button>
+          <button type="button" @click="keywordForm=!keywordForm" x-text="keywordForm ? 'Close' : 'Add skill'"></button>
+        </div>
+      </div>
+      <div class="keyword-panel">
+        <form x-show="keywordForm" x-cloak class="inline-form" hx-post="/jobs/{{ job.id }}/keywords" hx-target="#keywords">
+          <label class="sr-only" for="new-keyword">Skill or search keyword</label>
+          <input id="new-keyword" name="term" placeholder="Skill or search keyword" required>
+          <button>Add skill</button>
+        </form>
+        <div id="keywords" hx-get="/jobs/{{ job.id }}/keywords" hx-trigger="load" aria-live="polite"><div class="loading-state">Loading keywords…</div></div>
+      </div>
+      <div class="form-actions">
+        <a class="button-link secondary" target="_blank" rel="noopener" href="https://recruit.naukri.com/">Open Naukri Recruiter</a>
+        <button type="button" @click="step=2">Continue to candidates</button>
+      </div>
+    </section>
 
-  <section x-show="step===4" class="surface"><div class="section-head"><h2>Onboarding</h2><div><a class="button-link" href="/jobs/{{ job.id }}/export/onboarding.json">Export tasks JSON</a> <button @click="taskForm=!taskForm">Add task</button></div></div><form x-show="taskForm" x-cloak class="inline-form" hx-post="/jobs/{{ job.id }}/tasks" hx-target="#tasks"><input name="title" placeholder="Task" required><input name="owner" placeholder="Owner" required><span hx-get="/jobs/{{ job.id }}/onboarding-candidates" hx-trigger="load, shortlistChanged from:body"></span><input type="date" name="due_date"><button>Add</button></form><h3>Generate checklist</h3><form class="inline-form" hx-post="/jobs/{{ job.id }}/tasks/checklist" hx-target="#tasks"><span hx-get="/jobs/{{ job.id }}/onboarding-candidates?required=true" hx-trigger="load, shortlistChanged from:body"></span><input name="owner" placeholder="Task owner"><input type="date" name="joining_date"><button>Generate checklist</button></form><div id="tasks" hx-get="/jobs/{{ job.id }}/tasks" hx-trigger="load"></div></section>
-</main></body></html>
+    <section x-show="step===2" x-transition.opacity class="surface" aria-labelledby="sourcing-title">
+      <div class="section-head">
+        <div class="section-intro">
+          <p class="eyebrow">CANDIDATE SOURCING</p>
+          <h2 id="sourcing-title">Bring candidates into view</h2>
+          <p class="muted">Search with the approved keywords, then bring profiles and resumes into the same review flow.</p>
+        </div>
+        <button type="button" class="secondary" hx-post="/jobs/{{ job.id }}/demo-candidates" hx-target="#candidates">Load demo profiles</button>
+      </div>
+      <div class="sourcing-panel">
+        <label for="boolean-query">Naukri Boolean query<input id="boolean-query" readonly value="{{ boolean_query }}"></label>
+        <button type="button" class="copy-query" @click="navigator.clipboard.writeText('{{ boolean_query|replace("'", "\\'") }}');queryCopied=true">Copy search query</button><span class="copy-confirmation" x-show="queryCopied" x-cloak x-transition.opacity>Copied to clipboard</span>
+        <div class="candidate-actions">
+          <strong>Candidate sourcing</strong>
+          <a class="button-link secondary" target="_blank" rel="noopener" href="https://recruit.naukri.com/">Open Naukri Recruiter</a>
+          <button type="button" class="secondary" @click="candidateForm=!candidateForm" x-text="candidateForm ? 'Close profile form' : 'Add candidate profile'"></button>
+          <button type="button" class="secondary" @click="importForm=!importForm" x-text="importForm ? 'Close upload' : 'Upload resumes'"></button>
+        </div>
+      </div>
+      <form x-show="candidateForm" x-cloak class="job-form" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post="/jobs/{{ job.id }}/candidates" hx-target="#candidates">
+        <div class="two-col">
+          <label>Name<input name="name" required></label>
+          <label>Location<input name="location"></label>
+          <label>Experience · years<input type="number" name="years_experience" min="0" step=".5"></label>
+          <label>Notice · days<input type="number" name="notice_days" min="0"></label>
+          <label>Salary · ₹ LPA<input type="number" name="salary_lpa" min="0" step=".1"></label>
+        </div>
+        <label>Resume or profile text<textarea name="resume_text" placeholder="Paste the candidate’s profile or resume text here."></textarea></label>
+        <label>Or upload one TXT, MD, PDF, or DOCX <span class="sr-only">up to 10 MB</span><input type="file" name="resume_file" accept=".txt,.md,.pdf,.docx"></label>
+        <div class="form-actions"><button>Add and calculate match</button></div>
+      </form>
+      <form x-show="importForm" x-cloak class="job-form" enctype="multipart/form-data" hx-encoding="multipart/form-data" hx-post="/jobs/{{ job.id }}/candidates/import" hx-target="#candidates">
+        <label>Upload TXT, MD, PDF, or DOCX resumes<input type="file" name="resume_files" accept=".txt,.md,.pdf,.docx" multiple required></label>
+        <p class="field-help">Each file is read and matched against this requisition. Files must be 10 MB or smaller.</p>
+        <div class="form-actions"><button>Import resumes and calculate matches</button></div>
+      </form>
+      <div class="form-actions"><button type="button" class="secondary" @click="step=1">Back</button><button type="button" @click="step=3">Review candidates</button></div>
+    </section>
+
+    <section x-show="step===3" x-transition.opacity class="surface" aria-labelledby="review-title">
+      <div class="section-head">
+        <div><p class="eyebrow">CANDIDATE REVIEW</p><h2 id="review-title">Compare evidence and shortlist</h2></div>
+        <div class="section-actions">
+          <a class="button-link secondary" href="/jobs/{{ job.id }}/export/candidates.csv">Export candidates</a>
+          <a class="button-link secondary" href="/jobs/{{ job.id }}/export/shortlist.csv">Export shortlist</a>
+          <button type="button" @click="step=4">Continue to onboarding</button>
+        </div>
+      </div>
+      <div class="filter-panel">
+        <form class="filters" hx-get="/jobs/{{ job.id }}/candidates" hx-target="#candidates" hx-trigger="change, keyup delay:300ms from:input">
+          <div class="filter-field"><label for="filter-skill">Matched skill<input id="filter-skill" name="skill" placeholder="e.g. Python"></label></div>
+          <div class="filter-field"><label for="filter-location">Location<input id="filter-location" name="location" placeholder="e.g. Bengaluru"></label></div>
+          <div class="filter-field"><label for="filter-experience">Minimum years<input id="filter-experience" type="number" name="min_experience" min="0" step=".5" placeholder="Any"></label></div>
+          <div class="filter-field"><label for="filter-notice">Maximum notice<input id="filter-notice" type="number" name="max_notice_days" min="0" placeholder="Any"></label></div>
+          <div class="filter-field"><label for="filter-salary">Maximum ₹ LPA<input id="filter-salary" type="number" name="max_salary_lpa" min="0" step=".5" placeholder="Any"></label></div>
+          <div class="filter-field"><label for="filter-source">Source<select id="filter-source" name="source"><option value="all">All sources</option><option value="upload">Uploaded</option><option value="sample">Demo</option></select></label></div>
+          <div class="filter-field"><label for="filter-sort">Sort by<select id="filter-sort" name="sort"><option value="score">Best match</option><option value="name">Name</option><option value="experience">Experience</option></select></label></div>
+        </form>
+      </div>
+      <div id="candidates" hx-get="/jobs/{{ job.id }}/candidates" hx-trigger="load" aria-live="polite"><div class="loading-state">Loading candidates…</div></div>
+      <div class="section-head shortlist-heading"><div><p class="eyebrow">SELECTIONS</p><h2>Shortlist</h2></div></div>
+      <div id="shortlist" hx-get="/jobs/{{ job.id }}/shortlist" hx-trigger="load" aria-live="polite"><div class="loading-state">Loading shortlist…</div></div>
+    </section>
+
+    <section x-show="step===4" x-transition.opacity class="surface" aria-labelledby="onboarding-title">
+      <div class="section-head">
+        <div><p class="eyebrow">NEXT STEPS</p><h2 id="onboarding-title">Onboarding</h2><p class="muted">Keep joining preparation visible for every shortlisted candidate.</p></div>
+        <div class="section-actions"><a class="button-link secondary" href="/jobs/{{ job.id }}/export/onboarding.json">Export tasks JSON</a><button type="button" @click="taskForm=!taskForm" x-text="taskForm ? 'Close task form' : 'Add task'"></button></div>
+      </div>
+      <form x-show="taskForm" x-cloak class="inline-form inline-form--task" hx-post="/jobs/{{ job.id }}/tasks" hx-target="#tasks">
+        <label>Task<input name="title" placeholder="e.g. Confirm laptop setup" required></label>
+        <label>Owner<input name="owner" placeholder="e.g. People Ops" required></label>
+        <span hx-get="/jobs/{{ job.id }}/onboarding-candidates" hx-trigger="load, shortlistChanged from:body"></span>
+        <label>Due date<input type="date" name="due_date"></label>
+        <button>Add task</button>
+      </form>
+      <div class="keyword-panel">
+        <p class="eyebrow">SPEED UP PREPARATION</p>
+        <h3>Generate an onboarding checklist</h3>
+        <form class="inline-form inline-form--task" hx-post="/jobs/{{ job.id }}/tasks/checklist" hx-target="#tasks">
+          <span hx-get="/jobs/{{ job.id }}/onboarding-candidates?required=true" hx-trigger="load, shortlistChanged from:body"></span>
+          <label>Task owner<input name="owner" placeholder="Hiring team"></label>
+          <label>Joining date<input type="date" name="joining_date"></label>
+          <button>Generate checklist</button>
+        </form>
+      </div>
+      <div id="tasks" hx-get="/jobs/{{ job.id }}/tasks" hx-trigger="load" aria-live="polite"><div class="loading-state">Loading onboarding tasks…</div></div>
+    </section>
+  </main>
+</body>
+</html>

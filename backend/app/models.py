@@ -103,3 +103,12 @@ class RecruiterSettings(Base):
     max_notice_days: Mapped[int | None] = mapped_column(Integer)
     max_salary_lpa: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     linkedin_profile_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -1,1 +1,49 @@
-{% if rows %}<div class="job-list">{% for row in rows %}<article class="job-card" x-data="{editing:false}"><div class="section-head"><strong>{{ row.candidate.name }}</strong><b>{{ row.score }}% overall match</b></div><p class="muted">Keyword coverage {{ row.keyword_score }}% · Job-description relevance {{ row.description_score }}%</p><p>{{ row.matched|join(', ') or 'No matching keywords' }}</p><p class="muted">Missing: {{ row.missing|join(', ') or 'None' }}</p>{% if row.shortlisted %}<button hx-delete="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}/shortlist" hx-target="#candidates" hx-on::after-request="htmx.ajax('GET','/jobs/{{ row.candidate.job_id }}/shortlist',{target:'#shortlist'})">Remove from shortlist</button>{% else %}<button hx-post="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}/shortlist" hx-target="#candidates" hx-on::after-request="htmx.ajax('GET','/jobs/{{ row.candidate.job_id }}/shortlist',{target:'#shortlist'})">Add to shortlist</button>{% endif %}<button @click="editing=!editing">Edit profile</button><button hx-delete="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}" hx-target="#candidates" hx-confirm="Remove this candidate profile?">Remove</button><form x-show="editing" x-cloak class="job-form" hx-post="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}" hx-target="#candidates"><div class="two-col"><label>Name<input name="name" value="{{ row.candidate.name }}" required></label><label>Location<input name="location" value="{{ row.candidate.location or '' }}"></label><label>Experience · years<input name="years_experience" type="number" step=".5" value="{{ row.candidate.years_experience or '' }}"></label><label>Notice · days<input name="notice_days" type="number" value="{{ row.candidate.notice_days or '' }}"></label><label>Salary · ₹ LPA<input name="salary_lpa" type="number" step=".1" value="{{ row.candidate.salary_lpa or '' }}"></label></div><label>Profile text<textarea name="resume_text" required>{{ row.candidate.resume_text }}</textarea></label><button>Save and recalculate</button></form><details><summary>Evidence, interview prompts and profile</summary><ul>{% for skill,line in row.evidence.items() %}<li><b>{{ skill }}:</b> {{ line }}</li>{% endfor %}</ul><h4>Interview prompts</h4><ul>{% for prompt in row.prompts %}<li>{{ prompt }}</li>{% endfor %}</ul><pre>{{ row.candidate.resume_text }}</pre></details></article>{% endfor %}</div>{% else %}<p>No candidates yet. Add a candidate profile to compare it with approved keywords.</p>{% endif %}
+{% if rows %}
+<div class="job-list">
+  {% for row in rows %}
+  <article class="job-card candidate-card" x-data="{editing:false}">
+    <div class="section-head">
+      <div><p class="job-card-id">{{ row.candidate.source|upper }} PROFILE</p><h3 class="candidate-name">{{ row.candidate.name }}</h3></div>
+      <span class="match-score">{{ row.score }}% overall match</span>
+    </div>
+    <div class="candidate-details">
+      <span>Keyword coverage<b>{{ row.keyword_score }}%</b></span>
+      <span>Job relevance<b>{{ row.description_score }}%</b></span>
+      <span>Location<b>{{ row.candidate.location or 'Not provided' }}</b></span>
+    </div>
+    <p class="muted">{% if row.candidate.years_experience is not none %}{{ row.candidate.years_experience }} years of experience{% else %}Experience not provided{% endif %} · {% if row.candidate.notice_days is not none %}{{ row.candidate.notice_days }} days notice{% else %}Notice not provided{% endif %} · {% if row.candidate.salary_lpa is not none %}₹{{ row.candidate.salary_lpa }} LPA{% else %}Salary not provided{% endif %}</p>
+    {% if row.matched %}<div class="tags" aria-label="Matched skills">{% for term in row.matched %}<span class="tag">{{ term }}</span>{% endfor %}</div>{% else %}<p class="muted">No matching keywords found in this profile.</p>{% endif %}
+    {% if row.missing %}<p class="muted">Still to validate: {{ row.missing|join(', ') }}</p>{% endif %}
+    <div class="job-card-actions">
+      {% if row.shortlisted %}
+      <button class="secondary" hx-delete="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}/shortlist" hx-target="#candidates" hx-on::after-request="htmx.ajax('GET','/jobs/{{ row.candidate.job_id }}/shortlist',{target:'#shortlist'})">Remove from shortlist</button>
+      {% else %}
+      <button hx-post="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}/shortlist" hx-target="#candidates" hx-on::after-request="htmx.ajax('GET','/jobs/{{ row.candidate.job_id }}/shortlist',{target:'#shortlist'})">Add to shortlist</button>
+      {% endif %}
+      <button type="button" class="secondary" @click="editing=!editing" x-text="editing ? 'Close editor' : 'Edit profile'"></button>
+      <button class="danger quiet" hx-delete="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}" hx-target="#candidates" hx-confirm="Remove this candidate profile?">Remove</button>
+    </div>
+    <form x-show="editing" x-cloak class="job-form" hx-post="/jobs/{{ row.candidate.job_id }}/candidates/{{ row.candidate.id }}" hx-target="#candidates">
+      <div class="two-col">
+        <label>Name<input name="name" value="{{ row.candidate.name }}" required></label>
+        <label>Location<input name="location" value="{{ row.candidate.location or '' }}"></label>
+        <label>Experience · years<input name="years_experience" type="number" min="0" step=".5" value="{{ row.candidate.years_experience or '' }}"></label>
+        <label>Notice · days<input name="notice_days" type="number" min="0" value="{{ row.candidate.notice_days or '' }}"></label>
+        <label>Salary · ₹ LPA<input name="salary_lpa" type="number" min="0" step=".1" value="{{ row.candidate.salary_lpa or '' }}"></label>
+      </div>
+      <label>Profile text<textarea name="resume_text" required>{{ row.candidate.resume_text }}</textarea></label>
+      <div class="form-actions"><button>Save and recalculate</button></div>
+    </form>
+    <details>
+      <summary>View evidence, interview prompts, and profile</summary>
+      {% if row.evidence %}<h4>Evidence</h4><ul>{% for skill, line in row.evidence.items() %}<li><b>{{ skill }}:</b> {{ line }}</li>{% endfor %}</ul>{% endif %}
+      <h4>Interview prompts</h4>
+      <ul>{% for prompt in row.prompts %}<li>{{ prompt }}</li>{% endfor %}</ul>
+      <pre>{{ row.candidate.resume_text }}</pre>
+    </details>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><div><strong>No candidates match these filters</strong><p>Add a candidate profile, upload resumes, or adjust the filters to see results.</p></div></div>
+{% endif %}

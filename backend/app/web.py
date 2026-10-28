@@ -6,7 +6,7 @@ import csv, json, re
 from urllib.parse import quote_plus
 from uuid import uuid4
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_session
 from app.demo_candidates import DEMO_CANDIDATES
 from app.models import Candidate, CandidateMatch, Job, JobKeyword, OnboardingTask, RecruiterSettings, ShortlistEntry
-from app.api.v1.ai import AIServiceError, JOB_DESCRIPTION_INSTRUCTION, generate_json
+from app.api.v1.ai import AIServiceError, JOB_DESCRIPTION_INSTRUCTION, JOB_DESCRIPTION_RESPONSE_SCHEMA, KEYWORD_RESPONSE_SCHEMA, generate_json
+from app.auth import hash_password, verify_password
+from app.models import User
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -89,8 +91,46 @@ def recruiter_settings(session: Session) -> RecruiterSettings:
 
 def ai_error_fragment(request: Request, field_id: str, name: str, value: str, message: str):
     return templates.TemplateResponse(request, "partials/ai_text_field.html", {
-        "field_id": field_id, "name": name, "value": value, "message": message,
+        "field_id": field_id, "name": name, "value": value, "message": message, "is_error": True,
     }, status_code=502)
+
+@router.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    if request.session.get("user_id"):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"error": ""})
+
+@router.post("/login", response_class=HTMLResponse)
+def login(request: Request, username: str = Form(), password: str = Form(), session: Session = Depends(get_session)):
+    user = session.scalar(select(User).where(User.username == username.strip().lower()))
+    if not user or not verify_password(password, user.password_hash):
+        return templates.TemplateResponse(request, "login.html", {"error": "Invalid username or password."}, status_code=401)
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    return RedirectResponse(url="/", status_code=303)
+
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return templates.TemplateResponse(request, "register.html", {"error": "", "username": ""})
+
+@router.post("/register", response_class=HTMLResponse)
+def register(request: Request, username: str = Form(), password: str = Form(), session: Session = Depends(get_session)):
+    username = username.strip().lower()
+    error = ""
+    if not re.fullmatch(r"[a-z0-9_.-]{3,80}", username):
+        error = "Username must contain 3–80 letters, numbers, dots, hyphens, or underscores."
+    elif len(password) < 8:
+        error = "Password must contain at least 8 characters."
+    elif session.scalar(select(User).where(User.username == username)):
+        error = "That username is already in use."
+    if error:
+        return templates.TemplateResponse(request, "register.html", {"error": error, "username": username}, status_code=422)
+    user = User(username=username, password_hash=hash_password(password))
+    session.add(user); session.commit(); session.refresh(user)
+    if not request.session.get("user_id"):
+        request.session["user_id"] = user.id
+        request.session["username"] = user.username
+    return RedirectResponse(url="/", status_code=303)
 
 @router.post("/ui/ai/job-description", response_class=HTMLResponse)
 async def ai_job_description(
@@ -119,6 +159,8 @@ async def ai_job_description(
                 "max_notice_days": max_notice_days or None,
                 "additional_requirements": description.strip() or None,
             },
+            response_schema=JOB_DESCRIPTION_RESPONSE_SCHEMA,
+            operation="job description UI",
         )
         generated = str(result.get("description", "")).strip()
         if len(generated) < 50:
@@ -142,10 +184,12 @@ async def ai_keywords(
         result = await generate_json(
             instruction=(
                 "Extract up to 20 specific candidate-search keywords: skills, tools, frameworks, certifications, "
-                "domain terms, and seniority phrases. Exclude generic soft skills. Return JSON exactly as "
+                "domain terms, and seniority phrases. Exclude generic soft skills, generic words, and the job title. Return JSON exactly as "
                 '{"keywords":["term"]}.'
             ),
             payload={"job_title": title.strip(), "description": description.strip()},
+            response_schema=KEYWORD_RESPONSE_SCHEMA,
+            operation="keyword UI",
         )
         terms: dict[str, str] = {term.casefold(): term for term in (item.strip()[:160] for item in keywords.split(",")) if term}
         values = result.get("keywords", [])
@@ -193,11 +237,20 @@ async def settings_import(request:Request,settings_file:UploadFile=File(),sessio
     session.add(settings);session.commit();return templates.TemplateResponse(request,"settings.html",{"settings":settings,"saved":True,"imported":True})
 @router.get("/ui/jobs",response_class=HTMLResponse)
 def jobs(request:Request,session:Session=Depends(get_session)): return templates.TemplateResponse(request,"partials/jobs.html",{"jobs":session.scalars(select(Job).order_by(Job.created_at.desc())).all()})
-@router.post("/ui/jobs",response_class=HTMLResponse)
-def create_job(request:Request,title:str=Form(),description:str=Form(),location:str=Form(default=""),keywords:str=Form(default=""),min_experience_years:str=Form(default=""),max_experience_years:str=Form(default=""),salary_min_lpa:str=Form(default=""),salary_max_lpa:str=Form(default=""),max_notice_days:str=Form(default=""),session:Session=Depends(get_session)):
+def save_job(title:str,description:str,location:str,keywords:str,min_experience_years:str,max_experience_years:str,salary_min_lpa:str,salary_max_lpa:str,max_notice_days:str,session:Session):
     year=datetime.now(UTC).year; count=session.scalar(select(func.count()).select_from(Job).where(Job.id.like(f"HR-{year}-%"))) or 0
     job=Job(id=f"HR-{year}-{count+1:03d}",title=title.strip(),description=description.strip(),location=location.strip() or None,min_experience_years=number(min_experience_years),max_experience_years=number(max_experience_years),salary_min_lpa=number(salary_min_lpa),salary_max_lpa=number(salary_max_lpa),max_notice_days=int(max_notice_days) if max_notice_days else None)
-    job.keywords=[JobKeyword(term=x,source="human",is_approved=True) for x in dict.fromkeys(x.strip() for x in keywords.split(",") if x.strip())]; session.add(job); session.commit(); return jobs(request,session)
+    job.keywords=[JobKeyword(term=x,source="human",is_approved=True) for x in dict.fromkeys(x.strip() for x in keywords.split(",") if x.strip())]; session.add(job); session.commit()
+@router.post("/ui/jobs",response_class=HTMLResponse)
+def create_job(request:Request,title:str=Form(),description:str=Form(),location:str=Form(default=""),keywords:str=Form(default=""),min_experience_years:str=Form(default=""),max_experience_years:str=Form(default=""),salary_min_lpa:str=Form(default=""),salary_max_lpa:str=Form(default=""),max_notice_days:str=Form(default=""),session:Session=Depends(get_session)):
+    save_job(title,description,location,keywords,min_experience_years,max_experience_years,salary_min_lpa,salary_max_lpa,max_notice_days,session); return jobs(request,session)
+@router.get("/jobs/new",response_class=HTMLResponse)
+def new_job_page(request:Request,session:Session=Depends(get_session)):
+    return templates.TemplateResponse(request,"new_job.html",{"settings":recruiter_settings(session)})
+@router.post("/jobs/new")
+def create_job_page(title:str=Form(),description:str=Form(),location:str=Form(default=""),keywords:str=Form(default=""),min_experience_years:str=Form(default=""),max_experience_years:str=Form(default=""),salary_min_lpa:str=Form(default=""),salary_max_lpa:str=Form(default=""),max_notice_days:str=Form(default=""),session:Session=Depends(get_session)):
+    save_job(title,description,location,keywords,min_experience_years,max_experience_years,salary_min_lpa,salary_max_lpa,max_notice_days,session)
+    return RedirectResponse(url="/",status_code=303)
 @router.delete("/ui/jobs/{job_id}",response_class=HTMLResponse)
 def delete_job(request:Request,job_id:str,session:Session=Depends(get_session)):
     job=job_or_404(session,job_id)

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('talent-desk-theme')||'dark'}catch(_){document.documentElement.dataset.theme='dark'}</script>
+  <title>Sign in · Talent Desk</title>
+  <link rel="stylesheet" href="/static/talent-desk.css">
+  <script defer src="/static/talent-desk.js"></script>
+</head>
+<body>
+  <div class="auth-theme-control"><button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false"><span class="theme-icon" data-theme-icon aria-hidden="true">☾</span><span class="theme-label" data-theme-label>Dark mode</span></button></div>
+  <main class="auth-page">
+    <section class="surface auth-card" aria-labelledby="sign-in-title">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">TD</span>Talent Desk</div>
+      <p class="kicker">WELCOME BACK</p>
+      <h1 id="sign-in-title">Sign in to your workspace.</h1>
+      <p class="muted">Continue organizing your active roles and candidate reviews.</p>
+      {% if error %}<p class="auth-error" role="alert">{{ error }}</p>{% endif %}
+      <form class="job-form" method="post">
+        <label>Username<input name="username" autocomplete="username" required autofocus></label>
+        <label>Password<span class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" aria-controls="login-password" onclick="const field=document.getElementById('login-password');field.type=field.type==='password'?'text':'password';this.textContent=field.type==='password'?'Show':'Hide'">Show</button></span></label>
+        <button>Sign in</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

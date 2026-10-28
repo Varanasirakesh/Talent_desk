@@ -1,1 +1,17 @@
-{% if jobs %}<div class="job-list">{% for job in jobs %}<article class="job-card"><a class="job-link" href="/jobs/{{ job.id }}"><strong>{{ job.id }}</strong><h3>{{ job.title }}</h3><p>{{ job.location or "Location not set" }}</p></a><button class="danger" hx-delete="/ui/jobs/{{ job.id }}" hx-target="#jobs" hx-swap="innerHTML" hx-confirm="Delete {{ job.id }} and all of its candidates, scores, shortlist entries, and onboarding tasks?">Delete job</button></article>{% endfor %}</div>{% else %}<p>No saved requisitions yet. Add one to begin.</p>{% endif %}
+{% if jobs %}
+<div class="job-list">
+  {% for job in jobs %}
+  <article class="job-card">
+    <span class="job-card-id">{{ job.id }}</span>
+    <h3>{{ job.title or '' }}</h3>
+    <div class="job-card-meta"><span>{{ job.location or "Location not set" }}</span><span>Ready for candidate review</span></div>
+    <div class="job-card-actions">
+      <a class="button-link" href="/jobs/{{ job.id }}">Open workspace</a>
+      <button class="danger quiet" hx-delete="/ui/jobs/{{ job.id }}" hx-target="#jobs" hx-swap="innerHTML" hx-confirm="Delete {{ job.id }} and all of its candidates, scores, shortlist entries, and onboarding tasks?">Delete job</button>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><div><strong>No open roles yet</strong><p>Create your first requisition to start organizing candidate outreach and review.</p></div></div>
+{% endif %}

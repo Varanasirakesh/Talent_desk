@@ -2,11 +2,11 @@
 <ul class="task-list">
   {% for task in tasks %}
   <li>
-    <button class="check" hx-patch="/jobs/{{ job_id }}/tasks/{{ task.id }}" hx-target="#tasks">{{ '✓' if task.status == 'done' else '○' }}</button>
-    <span class="{{ 'done' if task.status == 'done' else '' }}"><strong>{{ task.title }}</strong> · {{ candidate_names.get(task.candidate_id, 'General task') }} · {{ task.owner }} · {{ task.due_date or 'No due date' }}</span>
+    <button type="button" class="check" hx-patch="/jobs/{{ job_id }}/tasks/{{ task.id }}" hx-target="#tasks" aria-label="{{ 'Mark task incomplete' if task.status == 'done' else 'Mark task complete' }}">{{ '✓' if task.status == 'done' else '○' }}</button>
+    <div class="task-content"><span class="{{ 'done' if task.status == 'done' else '' }}"><strong>{{ task.title }}</strong></span><span class="task-meta">{{ candidate_names.get(task.candidate_id, 'General task') }} · {{ task.owner }} · {{ task.due_date or 'No due date' }}</span></div>
   </li>
   {% endfor %}
 </ul>
 {% else %}
-<p>No onboarding tasks yet.</p>
+<div class="empty-state"><div><strong>No onboarding tasks yet</strong><p>Add a task or generate a checklist when a shortlisted candidate is ready to join.</p></div></div>
 {% endif %}

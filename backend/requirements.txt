@@ -6,6 +6,7 @@ PyMySQL>=1.1,<2.0
 cryptography>=42,<50
 alembic>=1.13,<2.0
 Jinja2>=3.1,<4.0
+itsdangerous>=2.2,<3.0
 python-multipart>=0.0.9,<1.0
 pypdf>=5.0,<6.0
 python-docx>=1.1,<2.0

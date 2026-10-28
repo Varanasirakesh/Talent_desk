@@ -1,1 +1,9 @@
-{% if rows %}{% for row in rows %}<article class="job-card"><strong>{{ row.candidate.name }}</strong><p>{{ row.score }}% match · {{ row.matched|join(', ') }}</p></article>{% endfor %}{% else %}<p>Your shortlist is empty.</p>{% endif %}
+{% if rows %}
+<div class="shortlist-list">
+  {% for row in rows %}
+  <article class="shortlist-card"><strong>{{ row.candidate.name }}</strong><p><span class="match-score">{{ row.score }}% match</span></p><p>{{ row.matched|join(', ') or 'No matched keywords' }}</p></article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><div><strong>Your shortlist is empty</strong><p>Add promising candidates from the review list when you are ready to move them forward.</p></div></div>
+{% endif %}
